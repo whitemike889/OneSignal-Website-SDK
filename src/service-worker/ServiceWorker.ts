@@ -17,6 +17,7 @@ import Log from "../libraries/Log";
 import { ConfigHelper } from "../helpers/ConfigHelper";
 import { OneSignalUtils } from "../utils/OneSignalUtils";
 import { Utils } from "../utils/Utils";
+import { NotificationReceived } from "../models/Notification";
 
 ///<reference path="../../typings/globals/service_worker_api/index.d.ts"/>
 declare var self: ServiceWorkerGlobalScope;
@@ -181,52 +182,63 @@ export class ServiceWorker {
    * This method handles the receipt of a push signal on all web browsers except Safari, which uses the OS to handle
    * notifications.
    */
-  static onPushReceived(event) {
+  static onPushReceived(event: any) {
     Log.debug(`Called %conPushReceived(${JSON.stringify(event, null, 4)}):`, Utils.getConsoleStyle('code'), event);
 
     event.waitUntil(
-        ServiceWorker.parseOrFetchNotifications(event)
-            .then((notifications: any) => {
-              if (!notifications || notifications.length == 0) {
-                Log.debug("Because no notifications were retrieved, we'll display the last known notification, so" +
-                          " long as it isn't the welcome notification.");
-                return ServiceWorker.displayBackupNotification();
-              }
+      (async(event: any) => {
+        try {
+          const rawNotifications = await ServiceWorker.parseOrFetchNotifications(event) as any[];
+          if (!rawNotifications || rawNotifications.length == 0) {
+            Log.debug("Because no notifications were retrieved, we'll display the last known notification, so" +
+                      " long as it isn't the welcome notification.");
+            return ServiceWorker.displayBackupNotification();
+          }
 
-              //Display push notifications in the order we received them
-              let notificationEventPromiseFns = [];
+          const notificationReceivedPromises: Promise<void>[] = [];
 
-              for (let rawNotification of notifications) {
-                Log.debug('Raw Notification from OneSignal:', rawNotification);
-                let notification = ServiceWorker.buildStructuredNotificationObject(rawNotification);
+          //Display push notifications in the order we received them
+          const notificationEventPromiseFns = [];
 
-                // Never nest the following line in a callback from the point of entering from retrieveNotifications
-                notificationEventPromiseFns.push((notif => {
-                  return ServiceWorker.displayNotification(notif)
-                      .then(() => ServiceWorker.updateBackupNotification(notif).catch(e => Log.error(e)))
-                      .then(() => {
-                        return ServiceWorker.workerMessenger.broadcast(WorkerMessengerCommand.NotificationDisplayed, notif).catch(e => Log.error(e))
-                      })
-                      .then(() => ServiceWorker.executeWebhooks('notification.displayed', notif).catch(e => Log.error(e)))
-                }).bind(null, notification));
-              }
+          for (let rawNotification of rawNotifications) {
+            Log.debug('Raw Notification from OneSignal:', rawNotification);
+            const notification = ServiceWorker.buildStructuredNotificationObject(rawNotification);
+            const notificationReceived: NotificationReceived = {
+              notificationId: notification.id,
+              url: notification.url,
+              timestamp: new Date().getTime().toString(),
+              sent: false,
+            }
+            notificationReceivedPromises.push(Database.put("NotificationReceived", notificationReceived));
+            // TODO: decide what to do with all the notif received promises
+            // Probably should have it's own error handling but not blocking the rest of the execution?
 
-              return notificationEventPromiseFns.reduce((p, fn) => {
-                return p = p.then(fn);
-               }, Promise.resolve());
-            })
-            .catch(e => {
-              Log.debug('Failed to display a notification:', e);
-              if (ServiceWorker.UNSUBSCRIBED_FROM_NOTIFICATIONS) {
-                Log.debug('Because we have just unsubscribed from notifications, we will not show anything.');
-                return undefined;
-              } else {
-                Log.debug(
-                    "Because a notification failed to display, we'll display the last known notification, so long as it isn't the welcome notification.");
-                return ServiceWorker.displayBackupNotification();
-              }
-            })
-    )
+            // Never nest the following line in a callback from the point of entering from retrieveNotifications
+            notificationEventPromiseFns.push((notif => {
+              return ServiceWorker.displayNotification(notif)
+                  .then(() => ServiceWorker.updateBackupNotification(notif).catch(e => Log.error(e)))
+                  .then(() => {
+                    return ServiceWorker.workerMessenger.broadcast(WorkerMessengerCommand.NotificationDisplayed, notif).catch(e => Log.error(e))
+                  })
+                  .then(() => ServiceWorker.executeWebhooks('notification.displayed', notif).catch(e => Log.error(e)))
+            }).bind(null, notification));
+            return notificationEventPromiseFns.reduce((p, fn) => {
+              return p = p.then(fn);
+            }, Promise.resolve());
+          }
+        } catch(e) {
+          Log.debug("Failed to display a notification:", e);
+          if (ServiceWorker.UNSUBSCRIBED_FROM_NOTIFICATIONS) {
+            Log.debug("Because we have just unsubscribed from notifications, we will not show anything.");
+            return undefined;
+          } else {
+            Log.debug(
+                "Because a notification failed to display, we'll display the last known notification, so long as it isn't the welcome notification.");
+            return ServiceWorker.displayBackupNotification();
+          }
+        }
+      })(event)
+    );
   }
 
   /**
