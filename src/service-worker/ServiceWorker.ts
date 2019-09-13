@@ -199,12 +199,13 @@ export class ServiceWorker {
 
           //Display push notifications in the order we received them
           const notificationEventPromiseFns = [];
-
+          const appId = await Database.get<string>("Ids", "appId");
           for (let rawNotification of rawNotifications) {
             Log.debug('Raw Notification from OneSignal:', rawNotification);
             const notification = ServiceWorker.buildStructuredNotificationObject(rawNotification);
             const notificationReceived: NotificationReceived = {
               notificationId: notification.id,
+              appId,
               url: notification.url,
               timestamp: new Date().getTime().toString(),
               sent: false,
@@ -654,8 +655,10 @@ export class ServiceWorker {
     const notificationOpensLink: boolean = ServiceWorker.shouldOpenNotificationUrl(launchUrl);
     let saveNotificationClickedPromise: Promise<void> | undefined;
     if (notificationOpensLink) {
+      const appId = await Database.get<string>("Ids", "appId");
       const notificationClicked: NotificationClicked = {
         notificationId: notificationData.id,
+        appId,
         url: launchUrl,
         timestamp: new Date().getTime().toString(),
         sent: false,
