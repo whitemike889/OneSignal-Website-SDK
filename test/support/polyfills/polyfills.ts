@@ -1,8 +1,9 @@
-import fetch from 'node-fetch';
+import fetch from "node-fetch";
 const global = new Function('return this')();
 
 global.URL = require('url').URL;
 global.indexedDB = require('fake-indexeddb');
+global.IDBKeyRange = require("fake-indexeddb/lib/FDBKeyRange");
 global.Headers = require('./Headers');
 global.fetch = fetch;
 
