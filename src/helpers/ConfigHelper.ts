@@ -379,11 +379,7 @@ export class ConfigHelper {
           allowLocalhostAsSecureOrigin: serverConfig.config.setupBehavior ?
             serverConfig.config.setupBehavior.allowLocalhostAsSecureOrigin : undefined,
           requiresUserPrivacyConsent: userConfig.requiresUserPrivacyConsent,
-          outcomes: {
-            ...serverConfig.config.outcomes,
-            influencedTimePeriodMin: serverConfig.config.outcomes.influencedTimePeriodMin,
-            influencedNotificationsLimit: serverConfig.config.outcomes.influencedNotificationsLimit,
-          }
+          outcomes: serverConfig.config.outcomes,
         };
       case IntegrationConfigurationKind.JavaScript:
         /*
@@ -410,11 +406,7 @@ export class ConfigHelper {
                 : 'OneSignalSDUpdaterKWorker.js',
             path: !!userConfig.path ? userConfig.path : '/'
           },
-          outcomes: {
-            ...serverConfig.config.outcomes,
-            influencedTimePeriodMin: serverConfig.config.outcomes.influencedTimePeriodMin,
-            influencedNotificationsLimit: serverConfig.config.outcomes.influencedNotificationsLimit,
-          }
+          outcomes: serverConfig.config.outcomes,
         };
 
         if (userConfig.hasOwnProperty("autoResubscribe")) {
