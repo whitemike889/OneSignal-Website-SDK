@@ -29,6 +29,8 @@ import { RawPushSubscription } from '../../../src/models/RawPushSubscription';
 
 var global = new Function('return this')();
 
+const APP_ID = "34fcbe85-278d-4fd2-a4ec-0f80e95072c5";
+
 export interface ServiceWorkerTestEnvironment extends ServiceWorkerGlobalScope {
   OneSignal: ServiceWorker;
 }
@@ -335,12 +337,11 @@ export class TestEnvironment {
     const fakeMergedConfig: AppConfig = TestEnvironment.getFakeMergedConfig(config);
     OneSignal.context = new Context(fakeMergedConfig);
     OneSignal.config = fakeMergedConfig;
-    OneSignal.config.appId = OneSignal.config.userConfig.appId!;
   }
 
-  static getFakeAppConfig(): AppConfig {
+  static getFakeAppConfig(appId: string = APP_ID): AppConfig {
     return {
-      appId: Random.getRandomUuid(),
+      appId,
       subdomain: undefined,
       httpUseOneSignalCom: false,
       cookieSyncEnabled: true,
@@ -358,11 +359,12 @@ export class TestEnvironment {
     };
   }
 
-  static getFakeServerAppConfig(configIntegrationKind: ConfigIntegrationKind, isHttps: boolean = true): ServerAppConfig {
+  static getFakeServerAppConfig(
+    configIntegrationKind: ConfigIntegrationKind, isHttps: boolean = true, appId: string = APP_ID): ServerAppConfig {
     if (configIntegrationKind === ConfigIntegrationKind.Custom) {
       const customConfigHttps: ServerAppConfig = {
         success: true,
-        app_id: "3d9dbff9-3956-49b3-9521-b0d755b350e5",
+        app_id: appId,
         features: {
           restrict_origin: {
             enable: true
@@ -529,7 +531,7 @@ export class TestEnvironment {
 
     return {
       success: true,
-      app_id: '34fcbe85-278d-4fd2-a4ec-0f80e95072c5',
+      app_id: appId,
       features: {
         restrict_origin: {
           enable: false,
@@ -691,9 +693,9 @@ export class TestEnvironment {
     };
   }
 
-  static getFakeAppUserConfig(): AppUserConfig {
+  static getFakeAppUserConfig(appId: string = APP_ID): AppUserConfig {
     return {
-      appId: '34fcbe85-278d-4fd2-a4ec-0f80e95072c5',
+      appId,
       autoRegister: true,
       autoResubscribe: true,
       path: '/fake-page',
